@@ -77,3 +77,43 @@ void print_poly(uint32_t a) {
         first = 0;
     }
 }
+static int run_tests(void) {
+    int fails = 0;
+    struct { int m; uint32_t p; } F[2] = { {4, POLY_GF16}, {8, POLY_GF256} };
+ 
+    for (int k = 0; k < 2; k++) {
+        int m = F[k].m; uint32_t p = F[k].p, n = 1u << m;
+        if (!is_irreducible(p)) { printf("FAIL: p khong toi gian (m=%d)\n", m); fails++; }
+        /* hai cach nhan phai cho cung ket qua voi moi cap (a, b) */
+        for (uint32_t a = 0; a < n; a++)
+            for (uint32_t b = 0; b < n; b++)
+                if (gf_mul(a, b, m, p) != gf_mul_naive(a, b, p)) fails++;
+        /* moi phan tu khac 0 phai co nghich dao */
+        for (uint32_t a = 1; a < n; a++) {
+            int has_inv = 0;
+            for (uint32_t b = 1; b < n; b++)
+                if (gf_mul(a, b, m, p) == 1) { has_inv = 1; break; }
+            if (!has_inv) fails++;
+        }
+    }
+    if (gf_mul(2, 8, 4, POLY_GF16) != 3)              { printf("FAIL: x * x^3\n"); fails++; }
+    if (gf_mul(0x57, 0x83, 8, POLY_GF256) != 0xC1)    { printf("FAIL: AES 0x57*0x83\n"); fails++; }
+    if (gf_mul(0x57, 0x13, 8, POLY_GF256) != 0xFE)    { printf("FAIL: AES 0x57*0x13\n"); fails++; }
+    if (is_irreducible(0x11))                         { printf("FAIL: x^4+1 khong toi gian\n"); fails++; }
+    return fails;
+}
+ 
+int main(void) {
+    uint32_t a = 0xB, b = 0x6, r = gf_mul(a, b, 4, POLY_GF16);
+    printf("GF(2^4), p(x) = x^4 + x + 1\n  ("); print_poly(a);
+    printf(") * ("); print_poly(b); printf(") = "); print_poly(r); printf("\n");
+ 
+    a = 0x57; b = 0x83; r = gf_mul(a, b, 8, POLY_GF256);
+    printf("GF(2^8), p(x) = x^8 + x^4 + x^3 + x + 1\n  ("); print_poly(a);
+    printf(") * ("); print_poly(b); printf(") = "); print_poly(r); printf("  (0x%02X)\n", r);
+ 
+    int fails = run_tests();
+    printf(fails ? "Test: %d loi\n" : "Tat ca test deu dat\n", fails);
+    return fails != 0;
+}
+ 
